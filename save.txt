@@ -1,0 +1,95 @@
+from PIL import Image
+import pytesseract
+import fitz  # PyMuPDF
+import os
+
+
+def ocr_image(image):
+    # Converter a imagem PIL para texto usando OCR
+    text = pytesseract.image_to_string(image, lang="por")
+    return text
+
+
+class ImageToText:
+    def __init__(self, lang="por"):
+        """Inicializa a classe com o idioma do OCR (padrão: português)."""
+        self.lang = lang  # Defina 'por' para português ou o idioma de sua preferência
+
+    def image_to_text(self, file_path):
+        """Converte uma imagem ou PDF em texto usando OCR."""
+        try:
+            # Verificar se o arquivo é uma imagem ou um PDF
+            if file_path.lower().endswith(
+                (".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif")
+            ):
+                # Carregar a imagem diretamente
+                image = Image.open(file_path)
+                # Executar OCR na imagem
+                text = ocr_image(image)
+                return text
+            elif file_path.lower().endswith(".pdf"):
+                # Carregar o PDF
+                pdf_document = fitz.open(file_path)
+                text = ""
+                # Criar diretório para salvar as imagens convertidas
+                output_dir = "converted_images"
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                # Iterar sobre cada página do PDF
+                for page_num in range(len(pdf_document)):
+                    page = pdf_document.load_page(page_num)
+                    # Converter a página para uma imagem com a maior qualidade possível
+                    pix = page.get_pixmap(
+                        matrix=fitz.Matrix(600 / 72, 600 / 72)
+                    )  # 600 DPI
+                    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                    # Salvar a imagem convertida como JPG
+                    img_path = os.path.join(output_dir, f"page_{page_num + 1}.jpg")
+                    img.save(img_path, "JPEG", quality=95)  # Alta qualidade JPEG
+                    # Executar OCR na imagem
+                    page_text = ocr_image(img)
+                    text += page_text
+                return text
+            else:
+                raise ValueError("Formato de arquivo não suportado.")
+        except Exception as e:
+            print("Erro ao processar o arquivo:", e)
+            return None
+
+
+# Exemplo de uso
+if __name__ == "__main__":
+    image_processor = ImageToText(lang="por")
+    file_path = "evidência2.pdf"  # Substitua pelo caminho da sua imagem ou PDF
+
+    texto_extraido = image_processor.image_to_text(file_path)
+    if texto_extraido:
+        print("Texto extraído do arquivo:")
+        print(texto_extraido)  # Imprime o texto extraído sem truncamento
+        # Salvar o texto extraído em um arquivo txt
+        with open("extracted_text.txt", "w") as text_file:
+            text_file.write(texto_extraido)
+        print("Texto extraído salvo em 'extracted_text.txt'.")
+    else:
+        print("Nenhum texto encontrado ou erro na leitura do arquivo.")
+
+
+
+chat.set_system_rule(
+    "Você deve extrair as respostas no Contexto passado para você antes da pergunta. Desconsidere itens de valores baixo e auxiliares. o que eu preciso saber e se o recibo, comprovante ou nota fiscal é principalmente de alimentação. Faça uma análise aprofundada de acordo com o seu conhecimento sobre o tipo de produto listado, e, de acordo com essa análise, responda apenas SIM ou NÃO, sem mais nenhuma letra além de sim ou não. Bebidas e doces devem ser considerados alimentação"
+)
+resposta3 = chat.ask(
+    "Os itens mais caros e a maioria dos itens são da categoria de alimentação? Desconsidere itens de valores baixo e auxiliares. o que eu preciso saber e se o recibo é principalmente de alimentação. Faça uma análise aprofundada, e, de acordo com essa análise, responda apenas SIM ou NÃO, sem mais nenhuma letra além de sim ou não. Bebidas e doces devem ser considerados alimentação, eletrônicos, serviços ou qualquer outro item não deve ser considerado alimentação"
+)
+print(
+    "Pergunta: Os itens mais caros e a maioria dos itens são da categoria de alimentação?"
+)
+print("Resposta:", resposta3)
+chat.set_system_rule(
+    "Você deve extrair as respostas no Contexto passado para você antes da pergunta. Faça o cálculo você, somando item a item, que você entenda serem bebidas alcoólicas, e, se esse somatório superar 50% do valor total do recibo, você deve responder apenas com SIM, caso contrário, apenas com NÃO, sem mais nenhuma palavra além de sim ou não. Não esqueça de contabilizar itens repetidos, que podem aparecer mais de uma vez, e, a cada uma delas, deve ser incluído no somatório"
+)
+resposta4 = chat.ask(
+    "O valor das bebidas alcoólicas supera 50% do valor desse recibo? Faça o cálculo você, somando item a item, que você entenda serem bebidas alcoólicas, e, se esse somatório superar 50% do valor total do recibo, você deve responder apenas com SIM, caso contrário, apenas com NÃO, sem mais nenhuma palavra além de sim ou não. Não esqueça de contabilizar itens repetidos, que podem aparecer mais de uma vez, e, a cada uma delas, deve ser incluído no somatório"
+)
+print("Pergunta: O valor das bebidas alcoólicas supera 50% do valor desse recibo?")
+print("Resposta:", resposta4)
